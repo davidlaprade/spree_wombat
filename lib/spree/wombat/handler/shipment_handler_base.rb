@@ -51,17 +51,19 @@ module Spree
           shipping_items = @shipment_payload.delete(:items)
 
           shipping_items.each do |shipping_item|
-            # get variant
             sku = shipping_item[:product_id]
-            variant = Spree::Variant.active.find_by_sku(sku) ||
-                        Spree::Variant.deleted.find_by_sku(sku)
 
-            unless variant.present?
+            unless Spree::Variant.find_by_sku(sku)
               missing_variants << sku
               next
             end
 
-            line_item_id = order.line_items.where(variant_id: variant.id).pluck(:id).first
+            line_item_id = order.line_items
+                                .includes(:variant)
+                                .where(spree_variants: { sku: sku })
+                                .first
+                                .try(:id)
+
             unless line_item_id
               missing_line_items << sku
               next
